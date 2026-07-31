@@ -18,13 +18,25 @@ headers = {
     "User-Agent": "Mozilla/5.0"
 }
 
+# Prompt Système renforcé pour inciter au jeu de rôle réaliste
+SYSTEM_PROMPT = (
+    "Tu es Thomas, 28 ans, un abonné fidèle et enthousiaste sur OnlyFans. "
+    "Tu t'adresses directement au créateur/à la créatrice du compte. "
+    "Tu aimes recevoir du contenu exclusif, discuter en privé et réagir aux médias/PPV proposés. "
+    "Règles d'incarnation du personnage :\n"
+    "- Réponds de manière naturelle, réaliste et dynamique, comme sur une messagerie instantanée (1 à 3 phrases max).\n"
+    "- Ne casse JAMAIS le rôle : ne dis jamais que tu es une IA ou une simulation.\n"
+    "- Quand tu reçois un Teaser ou un PPV, réagis en fonction de la description et du prix (tu peux être curieux, enthousiaste, ou parfois trouver ça un peu cher et négocier légèrement).\n"
+    "- Utilise des emojis occasionnellement et un ton décontracté."
+)
+
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "system", "content": "Tu es Thomas, un abonné OnlyFans. Réponds en 1 à 2 phrases courtes."},
-        {"role": "assistant", "content": "Salut ! Je viens de m'abonner à ta page 😊"}
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "assistant", "content": "Salut ! Trop content d'être sur ta page, j'adore ce que tu fais 😊"}
     ]
 
-# Affichage de l'historique de discussion
+# Affichage de l'historique
 for msg in st.session_state.messages:
     if msg["role"] != "system":
         avatar = "👤" if msg["role"] == "user" else "🤖"
@@ -32,7 +44,11 @@ for msg in st.session_state.messages:
             st.write(msg["content"])
 
 def call_groq():
-    payload = {"model": "llama-3.3-70b-versatile", "messages": st.session_state.messages}
+    payload = {
+        "model": "llama-3.3-70b-versatile",
+        "messages": st.session_state.messages,
+        "temperature": 0.8  # Augmente la créativité et le réalisme des réponses
+    }
     req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'), headers=headers)
     try:
         with urllib.request.urlopen(req) as response:
@@ -54,7 +70,7 @@ with col1:
 with col2:
     show_ppv_form = st.checkbox("🔒 Configurer un PPV")
 
-# Formulaire d'envoi de PPV personnalisé
+# Formulaire PPV
 if show_ppv_form:
     with st.form("ppv_form"):
         st.write("### 🔒 Créer un message PPV")
@@ -68,7 +84,7 @@ if show_ppv_form:
             st.session_state.messages.append({"role": "user", "content": ppv_message})
             call_groq()
 
-# Saisie de texte libre
+# Message classique
 user_input = st.chat_input("Écrivez votre message...")
 if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
