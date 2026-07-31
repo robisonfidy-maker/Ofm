@@ -1,151 +1,75 @@
 import streamlit as st
-import pandas as pd
-import math
-from pathlib import Path
+import json
+import urllib.request
 
-# Set the title and favicon that appear in the Browser's tab bar.
-st.set_page_config(
-    page_title='GDP dashboard',
-    page_icon=':earth_americas:', # This is an emoji shortcode. Could be a URL too.
-)
+st.set_page_config(page_title="OF Chat Simulator", page_icon="💬")
+st.title("💬 Simulation Chat OnlyFans")
 
-# -----------------------------------------------------------------------------
-# Declare some useful functions.
+api_key = st.sidebar.text_input("Clé API Groq", type="password")
 
-@st.cache_data
-def get_gdp_data():
-    """Grab GDP data from a CSV file.
+if not api_key:
+    st.info("👈 Veuillez entrer votre clé API Groq dans le panneau latéral pour commencer.")
+    st.stop()
 
-    This uses caching to avoid having to read the file every time. If we were
-    reading from an HTTP endpoint instead of a file, it's a good idea to set
-    a maximum age to the cache with the TTL argument: @st.cache_data(ttl='1d')
-    """
+url = "https://api.groq.com/openai/v1/chat/completions"
+headers = {
+    "Authorization": f"Bearer {api_key}",
+    "Content-Type": "application/json",
+    "User-Agent": "Mozilla/5.0"
+}
 
-    # Instead of a CSV on disk, you could read from an HTTP endpoint here too.
-    DATA_FILENAME = Path(__file__).parent/'data/gdp_data.csv'
-    raw_gdp_df = pd.read_csv(DATA_FILENAME)
+if "messages" not in st.session_state:
+    st.session_state.messages = [
+        {"role": "system", "content": "Tu es Thomas, un abonné OnlyFans. Réponds en 1 à 2 phrases courtes."},
+        {"role": "assistant", "content": "Salut ! Je viens de m'abonner à ta page 😊"}
+    ]
 
-    MIN_YEAR = 1960
-    MAX_YEAR = 2022
+# Affichage de l'historique de discussion
+for msg in st.session_state.messages:
+    if msg["role"] != "system":
+        avatar = "👤" if msg["role"] == "user" else "🤖"
+        with st.chat_message(msg["role"], avatar=avatar):
+            st.write(msg["content"])
 
-    # The data above has columns like:
-    # - Country Name
-    # - Country Code
-    # - [Stuff I don't care about]
-    # - GDP for 1960
-    # - GDP for 1961
-    # - GDP for 1962
-    # - ...
-    # - GDP for 2022
-    #
-    # ...but I want this instead:
-    # - Country Name
-    # - Country Code
-    # - Year
-    # - GDP
-    #
-    # So let's pivot all those year-columns into two: Year and GDP
-    gdp_df = raw_gdp_df.melt(
-        ['Country Code'],
-        [str(x) for x in range(MIN_YEAR, MAX_YEAR + 1)],
-        'Year',
-        'GDP',
-    )
+def call_groq():
+    payload = {"model": "llama-3.3-70b-versatile", "messages": st.session_state.messages}
+    req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'), headers=headers)
+    try:
+        with urllib.request.urlopen(req) as response:
+            result = json.loads(response.read().decode('utf-8'))
+            reply = result['choices'][0]['message']['content']
+            st.session_state.messages.append({"role": "assistant", "content": reply})
+            st.rerun()
+    except Exception as e:
+        st.error(f"Erreur d'API : {e}")
 
-    # Convert years from string to integers
-    gdp_df['Year'] = pd.to_numeric(gdp_df['Year'])
+# Zone d'envoi rapide (Teaser / PPV)
+col1, col2 = st.columns(2)
 
-    return gdp_df
+with col1:
+    if st.button("📸 Envoyer Teaser (Gratuit)"):
+        st.session_state.messages.append({"role": "user", "content": "[📸 APERÇU MEDIA GRATUIT Envoyé]"})
+        call_groq()
 
-gdp_df = get_gdp_data()
+with col2:
+    show_ppv_form = st.checkbox("🔒 Configurer un PPV")
 
-# -----------------------------------------------------------------------------
-# Draw the actual page
+# Formulaire d'envoi de PPV personnalisé
+if show_ppv_form:
+    with st.form("ppv_form"):
+        st.write("### 🔒 Créer un message PPV")
+        ppv_desc = st.text_input("Description du média", "Vidéo exclusive de 3 minutes")
+        ppv_price = st.number_input("Prix (€)", min_value=1, max_value=500, value=30, step=5)
+        
+        submit_ppv = st.form_submit_button("🚀 Envoyer le PPV")
+        
+        if submit_ppv:
+            ppv_message = f"[🔒 MEDIA PPV VERROUILLÉ ({ppv_price}€) - {ppv_desc}]"
+            st.session_state.messages.append({"role": "user", "content": ppv_message})
+            call_groq()
 
-# Set the title that appears at the top of the page.
-'''
-# :earth_americas: GDP dashboard
-
-Browse GDP data from the [World Bank Open Data](https://data.worldbank.org/) website. As you'll
-notice, the data only goes to 2022 right now, and datapoints for certain years are often missing.
-But it's otherwise a great (and did I mention _free_?) source of data.
-'''
-
-# Add some spacing
-''
-''
-
-min_value = gdp_df['Year'].min()
-max_value = gdp_df['Year'].max()
-
-from_year, to_year = st.slider(
-    'Which years are you interested in?',
-    min_value=min_value,
-    max_value=max_value,
-    value=[min_value, max_value])
-
-countries = gdp_df['Country Code'].unique()
-
-if not len(countries):
-    st.warning("Select at least one country")
-
-selected_countries = st.multiselect(
-    'Which countries would you like to view?',
-    countries,
-    ['DEU', 'FRA', 'GBR', 'BRA', 'MEX', 'JPN'])
-
-''
-''
-''
-
-# Filter the data
-filtered_gdp_df = gdp_df[
-    (gdp_df['Country Code'].isin(selected_countries))
-    & (gdp_df['Year'] <= to_year)
-    & (from_year <= gdp_df['Year'])
-]
-
-st.header('GDP over time', divider='gray')
-
-''
-
-st.line_chart(
-    filtered_gdp_df,
-    x='Year',
-    y='GDP',
-    color='Country Code',
-)
-
-''
-''
-
-
-first_year = gdp_df[gdp_df['Year'] == from_year]
-last_year = gdp_df[gdp_df['Year'] == to_year]
-
-st.header(f'GDP in {to_year}', divider='gray')
-
-''
-
-cols = st.columns(4)
-
-for i, country in enumerate(selected_countries):
-    col = cols[i % len(cols)]
-
-    with col:
-        first_gdp = first_year[first_year['Country Code'] == country]['GDP'].iat[0] / 1000000000
-        last_gdp = last_year[last_year['Country Code'] == country]['GDP'].iat[0] / 1000000000
-
-        if math.isnan(first_gdp):
-            growth = 'n/a'
-            delta_color = 'off'
-        else:
-            growth = f'{last_gdp / first_gdp:,.2f}x'
-            delta_color = 'normal'
-
-        st.metric(
-            label=f'{country} GDP',
-            value=f'{last_gdp:,.0f}B',
-            delta=growth,
-            delta_color=delta_color
-        )
+# Saisie de texte libre
+user_input = st.chat_input("Écrivez votre message...")
+if user_input:
+    st.session_state.messages.append({"role": "user", "content": user_input})
+    call_groq()
