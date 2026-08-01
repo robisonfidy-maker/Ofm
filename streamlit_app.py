@@ -3,26 +3,32 @@ import json
 import urllib.request
 
 # Configuration de la page
-st.set_page_config(page_title="OFM Chat Simulator", page_icon="💬", layout="centered")
+st.set_page_config(page_title="Simulator by Kris", page_icon="💬", layout="centered")
 
-# CSS Personnalisé : Thème Dark & Neon OFM (#00AFF0)
+# CSS Personnalisé : Thème Violet Clair
 st.markdown("""
 <style>
-    /* Fond général sombre */
+    /* Fond général violet clair */
     .stApp {
-        background-color: #0b0e11;
-        color: #e0e6ed;
+        background-color: #F3E8FF;
+        color: #2D3748;
     }
     
-    /* Titres et en-têtes */
+    /* Titres et en-têtes en violet foncé */
     h1, h2, h3 {
-        color: #00aff0 !important;
+        color: #5B21B6 !important;
         font-family: 'Helvetica Neue', sans-serif;
+        font-weight: bold;
     }
     
-    /* Boutons personnalisés style OnlyFans */
+    /* Sous-titres et textes d'information */
+    .stCaption, p {
+        color: #4C1D95;
+    }
+    
+    /* Boutons personnalisés en violet vif */
     div.stButton > button {
-        background-color: #00aff0;
+        background-color: #7C3AED;
         color: #ffffff;
         border-radius: 25px;
         border: none;
@@ -32,22 +38,23 @@ st.markdown("""
     }
     
     div.stButton > button:hover {
-        background-color: #008cb8;
+        background-color: #6D28D9;
         color: #ffffff;
-        box-shadow: 0px 4px 12px rgba(0, 175, 240, 0.4);
+        box-shadow: 0px 4px 12px rgba(124, 58, 237, 0.4);
     }
     
-    /* Style des cartes de discussion et formulaires */
+    /* Style des cartes de discussion */
     .stChatMessage {
-        background-color: #161b22;
+        background-color: #FFFFFF;
         border-radius: 12px;
-        border: 1px solid #21262d;
+        border: 1px solid #DDD6FE;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
     }
     
     /* Formulaire PPV */
     div[data-testid="stForm"] {
-        background-color: #161b22;
-        border: 1px solid #00aff0;
+        background-color: #FFFFFF;
+        border: 2px solid #7C3AED;
         border-radius: 15px;
         padding: 20px;
     }
@@ -55,13 +62,14 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# ÉTAPE 1 : ÉCRAN DE VÉRIFICATION DE L'ÂGE (GATEWAY +18)
+# ÉTAPE 1 : ÉCRAN DE VÉRIFICATION DE L'ÂGE
 # ---------------------------------------------------------
 if "age_verified" not in st.session_state:
     st.session_state.age_verified = False
 
 if not st.session_state.age_verified:
-    st.title("🔞 Accès Restreint - Simulateur OFM")
+    # Modification 2 : Titre changé
+    st.title("🔞 TSINDRIO POONGANY IO 18 IO LOU")
     st.write("---")
     st.warning("Ce simulateur est destiné à un usage professionnel de gestion et de formation au chat d'agence (OFM).")
     
@@ -75,13 +83,14 @@ if not st.session_state.age_verified:
         else:
             st.error("Vous devez cocher la case pour confirmer votre majorité avant de continuer.")
             
-    st.stop() # Bloque le reste de l'exécution tant que la personne n'a pas validé
+    st.stop()
 
 # ---------------------------------------------------------
-# ÉTAPE 2 : APPLICATION PRINCIPALE (CHAT SIMULATOR)
+# ÉTAPE 2 : APPLICATION PRINCIPALE
 # ---------------------------------------------------------
 
-st.title("💬 OFM Chat Simulator")
+# Modification 3 : Titre du chat changé
+st.title("💬 Simulator by Kris")
 st.caption("Espace de simulation de chat et vente de PPV")
 
 api_key = st.sidebar.text_input("Clé API OpenRouter", type="password")
