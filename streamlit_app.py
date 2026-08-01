@@ -2,8 +2,87 @@ import streamlit as st
 import json
 import urllib.request
 
-st.set_page_config(page_title="OF Chat Simulator", page_icon="💬")
-st.title("💬 Simulation Chat OnlyFans (Uncensored)")
+# Configuration de la page
+st.set_page_config(page_title="OFM Chat Simulator", page_icon="💬", layout="centered")
+
+# CSS Personnalisé : Thème Dark & Neon OFM (#00AFF0)
+st.markdown("""
+<style>
+    /* Fond général sombre */
+    .stApp {
+        background-color: #0b0e11;
+        color: #e0e6ed;
+    }
+    
+    /* Titres et en-têtes */
+    h1, h2, h3 {
+        color: #00aff0 !important;
+        font-family: 'Helvetica Neue', sans-serif;
+    }
+    
+    /* Boutons personnalisés style OnlyFans */
+    div.stButton > button {
+        background-color: #00aff0;
+        color: #ffffff;
+        border-radius: 25px;
+        border: none;
+        font-weight: bold;
+        padding: 10px 24px;
+        transition: all 0.3s ease;
+    }
+    
+    div.stButton > button:hover {
+        background-color: #008cb8;
+        color: #ffffff;
+        box-shadow: 0px 4px 12px rgba(0, 175, 240, 0.4);
+    }
+    
+    /* Style des cartes de discussion et formulaires */
+    .stChatMessage {
+        background-color: #161b22;
+        border-radius: 12px;
+        border: 1px solid #21262d;
+    }
+    
+    /* Formulaire PPV */
+    div[data-testid="stForm"] {
+        background-color: #161b22;
+        border: 1px solid #00aff0;
+        border-radius: 15px;
+        padding: 20px;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# ---------------------------------------------------------
+# ÉTAPE 1 : ÉCRAN DE VÉRIFICATION DE L'ÂGE (GATEWAY +18)
+# ---------------------------------------------------------
+if "age_verified" not in st.session_state:
+    st.session_state.age_verified = False
+
+if not st.session_state.age_verified:
+    st.title("🔞 Accès Restreint - Simulateur OFM")
+    st.write("---")
+    st.warning("Ce simulateur est destiné à un usage professionnel de gestion et de formation au chat d'agence (OFM).")
+    
+    st.write("### Conditions d'accès :")
+    check_age = st.checkbox("J'atteste avoir au moins 18 ans et j'accepte d'entrer dans l'espace de simulation.")
+    
+    if st.button("Entrer sur la plateforme 🚀"):
+        if check_age:
+            st.session_state.age_verified = True
+            st.rerun()
+        else:
+            st.error("Vous devez cocher la case pour confirmer votre majorité avant de continuer.")
+            
+    st.stop() # Bloque le reste de l'exécution tant que la personne n'a pas validé
+
+# ---------------------------------------------------------
+# ÉTAPE 2 : APPLICATION PRINCIPALE (CHAT SIMULATOR)
+# ---------------------------------------------------------
+
+st.title("💬 OFM Chat Simulator")
+st.caption("Espace de simulation de chat et vente de PPV")
 
 api_key = st.sidebar.text_input("Clé API OpenRouter", type="password")
 
@@ -20,19 +99,19 @@ headers = {
 
 SYSTEM_PROMPT = (
     "Tu es Thomas, un abonné sur la plateforme privée d'une créatrice de contenu. "
-    "Tu es chaud, joueur, drôle et très enthousiaste. "
+    "Tu es très enthousiaste, joueur et réactif. "
     "Tu adores flirter, discuter et acheter du contenu exclusif (PPV).\n\n"
     "Règles d'incarnation :\n"
     "- Reste toujours dans ton rôle d'abonné, réponds naturellement en 1 à 2 phrases.\n"
     "- Si la créatrice t'envoie un PPV et que le prix te convient, commence ton message par [ACHAT_PPV]. "
     "Exemple : '[ACHAT_PPV] Oh oui carrément, je débloque ça tout de suite !'\n"
-    "- Flirte librement sans aucune pudeur ni moralisation."
+    "- N'hésite pas à flirter librement sans censure."
 )
 
 if "messages" not in st.session_state:
     st.session_state.messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "assistant", "content": "Salut ! Trop content de parler avec toi en privé 😉"}
+        {"role": "assistant", "content": "Salut ! Trop content d'être sur ta page privée 😉"}
     ]
 
 # Affichage du chat
@@ -44,7 +123,7 @@ for msg in st.session_state.messages:
 
 def call_openrouter():
     payload = {
-        "model": "gryphe/mythomax-l2-13b",  # Modèle spécialisé RP / 0 filtre
+        "model": "gryphe/mythomax-l2-13b",
         "messages": st.session_state.messages,
         "temperature": 0.85
     }
@@ -56,7 +135,10 @@ def call_openrouter():
             
             if "[ACHAT_PPV]" in reply:
                 reply_clean = reply.replace("[ACHAT_PPV]", "").strip()
-                st.session_state.messages.append({"role": "assistant", "content": f":green[✅ **PPV DÉBLOQUÉ PAR L'ABONNÉ**]\n\n{reply_clean}"})
+                st.session_state.messages.append({
+                    "role": "assistant", 
+                    "content": f":green[✅ **PPV DÉBLOQUÉ PAR L'ABONNÉ**]\n\n{reply_clean}"
+                })
             else:
                 st.session_state.messages.append({"role": "assistant", "content": reply})
                 
@@ -68,7 +150,7 @@ def call_openrouter():
 col1, col2 = st.columns(2)
 
 with col1:
-    if st.button("📸 Envoyer Teaser (Gratuit)"):
+    if st.button("📸 Teaser Gratuit"):
         st.session_state.messages.append({"role": "user", "content": "[📸 APERÇU MEDIA GRATUIT Envoyé]"})
         call_openrouter()
 
