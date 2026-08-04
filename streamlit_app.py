@@ -1,6 +1,7 @@
 import streamlit as st
 import json
 import urllib.request
+import re
 
 # Configuration de la page
 st.set_page_config(page_title="Simulator by Kris", page_icon="💬", layout="centered")
@@ -44,7 +45,6 @@ st.markdown("""
     }
     
     /* Alignement des bulles de chat */
-    /* Messages de l'assistant (Abonné) -> Alignés à GAUCHE */
     div[data-testid="stChatMessage"]:has(div[aria-label="Chat message from assistant"]) {
         background-color: #FFFFFF;
         border-radius: 15px 15px 15px 0px;
@@ -54,7 +54,6 @@ st.markdown("""
         box-shadow: 0 2px 5px rgba(0,0,0,0.05);
     }
 
-    /* Messages de l'utilisateur (Créateur) -> Alignés à DROITE */
     div[data-testid="stChatMessage"]:has(div[aria-label="Chat message from user"]) {
         background-color: #7C3AED;
         color: #FFFFFF !important;
@@ -64,7 +63,6 @@ st.markdown("""
         box-shadow: 0 2px 5px rgba(0,0,0,0.08);
     }
 
-    /* Couleur du texte dans la bulle de l'utilisateur */
     div[data-testid="stChatMessage"]:has(div[aria-label="Chat message from user"]) p {
         color: #FFFFFF !important;
     }
@@ -75,6 +73,15 @@ st.markdown("""
         border: 2px solid #7C3AED;
         border-radius: 15px;
         padding: 20px;
+    }
+    
+    /* Style du conteneur KYC */
+    .kyc-box {
+        background-color: #FFFFFF;
+        border-radius: 12px;
+        padding: 15px;
+        border: 1px solid #DDD6FE;
+        margin-bottom: 20px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -122,13 +129,40 @@ headers = {
     "HTTP-Referer": "https://streamlit.app"
 }
 
+# Initialisation des variables KYC
+if "kyc_data" not in st.session_state:
+    st.session_state.kyc_data = {
+        "prenom": "Thomas", # Connu dès le départ par défaut
+        "age": None,
+        "ville": None,
+        "metier": None
+    }
+
+# ---------------------------------------------------------
+# GESTION ET AFFICHAGE DU KYC
+# ---------------------------------------------------------
+kyc = st.session_state.kyc_data
+score_kyc = sum(1 for val in kyc.values() if val is not None) * 25
+
+st.markdown("### 📊 Progression KYC")
+st.progress(score_kyc / 100)
+st.write(f"**Complété à : {score_kyc}%**")
+
+# Affichage des informations récoltées
+cols = st.columns(4)
+cols[0].write(f"👤 **Prénom:** {kyc['prenom'] if kyc['prenom'] else '❌'}")
+cols[1].write(f"🎂 **Âge:** {kyc['age'] if kyc['age'] else '❌'}")
+cols[2].write(f"📍 **Ville:** {kyc['ville'] if kyc['ville'] else '❌'}")
+cols[3].write(f"💼 **Métier:** {kyc['metier'] if kyc['metier'] else '❌'}")
+st.write("---")
+
 SYSTEM_PROMPT = (
     "Tu es Thomas, un abonné réel sur la plateforme privée d'une créatrice de contenu. "
     "Tu réagis de manière totalement naturelle, spontanée et réaliste comme un vrai fan.\n\n"
     "Règles strictes de comportement :\n"
     "- Parle de façon décontractée, directe et amicale (1 à 2 phrases courtes maximum).\n"
+    "- Si l'utilisateur te pose des questions sur toi (ton âge, ta ville, ton travail), réponds naturellement et donne ces infos quand on te le demande gentiment.\n"
     "- Si l'utilisateur t'envoie un message contenant '[🔒 MEDIA PPV VERROUILLÉ]', cela signifie qu'il te propose une vidéo ou photo payante.\n"
-    "- Évalue le prix et le contenu de manière naturelle : si le prix est raisonnable et le contenu attractif, tu peux décider de l'acheter.\n"
     "- SI ET SEULEMENT SI tu décides d'acheter ce PPV, commence IMPÉRATIVEMENT ta réponse par le mot exact : BUY_PPV.\n"
     "  Exemple : 'BUY_PPV Carrément chaud ! Je le prends direct.'\n"
     "- Si tu n'achètes pas (trop cher, pas intéressé, ou simple discussion), NE METS SURTOUT PAS le mot BUY_PPV. Négocie ou discute normalement.\n"
@@ -144,12 +178,25 @@ if "messages" not in st.session_state:
 if "last_sent_is_ppv" not in st.session_state:
     st.session_state.last_sent_is_ppv = False
 
-# Affichage de l'historique du chat (Abonné à gauche, Créateur à droite)
+# Affichage du chat
 for msg in st.session_state.messages:
     if msg["role"] != "system":
         avatar = "👤" if msg["role"] == "user" else "🤖"
         with st.chat_message(msg["role"], avatar=avatar):
             st.write(msg["content"])
+
+def analyze_kyc_with_ai(reply):
+    """Analyse la réponse de l'IA pour extraire automatiquement les infos KYC manquantes"""
+    # Détection basique par mots-clés dans la réponse de l'abonné
+    reply_lower = reply.lower()
+    
+    # Détection de l'âge (ex: 25 ans, 30ans)
+    age_match = re.search(r'(\d{2})\s*ans', reply_lower)
+    if age_match and not st.session_state.kyc_data["age"]:
+        st.session_state.kyc_data["age"] = f"{age_match.group(1)} ans"
+        
+    # Vous pouvez aussi mettre à jour la ville et le métier manuellement ou via détection
+    # (L'IA donnera ces infos si l'utilisateur lui pose la question dans le chat)
 
 def call_openrouter():
     payload = {
@@ -163,7 +210,10 @@ def call_openrouter():
             result = json.loads(response.read().decode('utf-8'))
             reply = result['choices'][0]['message']['content']
             
-            # L'affichage vert est conditionné : il faut qu'un PPV ait été envoyé ET que l'IA réponde BUY_PPV
+            # Analyse KYC de la réponse
+            analyze_kyc_with_ai(reply)
+            
+            # Gestion de l'affichage du PPV
             if st.session_state.last_sent_is_ppv and "BUY_PPV" in reply:
                 reply_clean = reply.replace("BUY_PPV", "").strip()
                 st.session_state.messages.append({
@@ -174,7 +224,6 @@ def call_openrouter():
                 reply_clean = reply.replace("BUY_PPV", "").strip()
                 st.session_state.messages.append({"role": "assistant", "content": reply_clean})
             
-            # Réinitialisation de l'indicateur PPV après la réponse
             st.session_state.last_sent_is_ppv = False
             st.rerun()
     except Exception as e:
