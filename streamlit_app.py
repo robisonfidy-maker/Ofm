@@ -5,7 +5,7 @@ import urllib.request
 # Configuration de la page
 st.set_page_config(page_title="Simulator by Kris", page_icon="💬", layout="centered")
 
-# CSS Personnalisé : Thème Violet Clair
+# CSS Personnalisé : Thème Violet Clair + Alignement des bulles (Gauche / Droite)
 st.markdown("""
 <style>
     /* Fond général violet clair */
@@ -43,12 +43,30 @@ st.markdown("""
         box-shadow: 0px 4px 12px rgba(124, 58, 237, 0.4);
     }
     
-    /* Style des cartes de discussion */
-    .stChatMessage {
+    /* Alignement des bulles de chat */
+    /* Messages de l'assistant (Abonné) -> Alignés à GAUCHE */
+    div[data-testid="stChatMessage"]:has(div[aria-label="Chat message from assistant"]) {
         background-color: #FFFFFF;
-        border-radius: 12px;
+        border-radius: 15px 15px 15px 0px;
         border: 1px solid #DDD6FE;
+        margin-right: auto;
+        max-width: 80%;
         box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+
+    /* Messages de l'utilisateur (Créateur) -> Alignés à DROITE */
+    div[data-testid="stChatMessage"]:has(div[aria-label="Chat message from user"]) {
+        background-color: #7C3AED;
+        color: #FFFFFF !important;
+        border-radius: 15px 15px 0px 15px;
+        margin-left: auto;
+        max-width: 80%;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+    }
+
+    /* Couleur du texte dans la bulle de l'utilisateur */
+    div[data-testid="stChatMessage"]:has(div[aria-label="Chat message from user"]) p {
+        color: #FFFFFF !important;
     }
     
     /* Formulaire PPV */
@@ -68,7 +86,6 @@ if "age_verified" not in st.session_state:
     st.session_state.age_verified = False
 
 if not st.session_state.age_verified:
-    # Modification 2 : Titre changé
     st.title("🔞 TSINDRIO POONGANY IO 18 IO LOU")
     st.write("---")
     st.warning("Ce simulateur est destiné à un usage professionnel de gestion et de formation au chat d'agence (OFM).")
@@ -89,7 +106,6 @@ if not st.session_state.age_verified:
 # ÉTAPE 2 : APPLICATION PRINCIPALE
 # ---------------------------------------------------------
 
-# Modification 3 : Titre du chat changé
 st.title("💬 Simulator by Kris")
 st.caption("Espace de simulation de chat et vente de PPV")
 
@@ -107,14 +123,16 @@ headers = {
 }
 
 SYSTEM_PROMPT = (
-    "Tu es Thomas, un abonné sur la plateforme privée d'une créatrice de contenu. "
-    "Tu es très enthousiaste, joueur et réactif. "
-    "Tu adores flirter, discuter et acheter du contenu exclusif (PPV).\n\n"
-    "Règles d'incarnation :\n"
-    "- Reste toujours dans ton rôle d'abonné, réponds naturellement en 1 à 2 phrases.\n"
-    "- Si la créatrice t'envoie un PPV et que le prix te convient, commence ton message par [ACHAT_PPV]. "
-    "Exemple : '[ACHAT_PPV] Oh oui carrément, je débloque ça tout de suite !'\n"
-    "- N'hésite pas à flirter librement sans censure."
+    "Tu es Thomas, un abonné réel sur la plateforme privée d'une créatrice de contenu. "
+    "Tu réagis de manière totalement naturelle, spontanée et réaliste comme un vrai fan.\n\n"
+    "Règles strictes de comportement :\n"
+    "- Parle de façon décontractée, directe et amicale (1 à 2 phrases courtes maximum).\n"
+    "- Si l'utilisateur t'envoie un message contenant '[🔒 MEDIA PPV VERROUILLÉ]', cela signifie qu'il te propose une vidéo ou photo payante.\n"
+    "- Évalue le prix et le contenu de manière naturelle : si le prix est raisonnable et le contenu attractif, tu peux décider de l'acheter.\n"
+    "- SI ET SEULEMENT SI tu décides d'acheter ce PPV, commence IMPÉRATIVEMENT ta réponse par le mot exact : BUY_PPV.\n"
+    "  Exemple : 'BUY_PPV Carrément chaud ! Je le prends direct.'\n"
+    "- Si tu n'achètes pas (trop cher, pas intéressé, ou simple discussion), NE METS SURTOUT PAS le mot BUY_PPV. Négocie ou discute normalement.\n"
+    "- Ne casse jamais ton rôle d'abonné."
 )
 
 if "messages" not in st.session_state:
@@ -123,7 +141,10 @@ if "messages" not in st.session_state:
         {"role": "assistant", "content": "Salut ! Trop content d'être sur ta page privée 😉"}
     ]
 
-# Affichage du chat
+if "last_sent_is_ppv" not in st.session_state:
+    st.session_state.last_sent_is_ppv = False
+
+# Affichage de l'historique du chat (Abonné à gauche, Créateur à droite)
 for msg in st.session_state.messages:
     if msg["role"] != "system":
         avatar = "👤" if msg["role"] == "user" else "🤖"
@@ -142,15 +163,19 @@ def call_openrouter():
             result = json.loads(response.read().decode('utf-8'))
             reply = result['choices'][0]['message']['content']
             
-            if "[ACHAT_PPV]" in reply:
-                reply_clean = reply.replace("[ACHAT_PPV]", "").strip()
+            # L'affichage vert est conditionné : il faut qu'un PPV ait été envoyé ET que l'IA réponde BUY_PPV
+            if st.session_state.last_sent_is_ppv and "BUY_PPV" in reply:
+                reply_clean = reply.replace("BUY_PPV", "").strip()
                 st.session_state.messages.append({
                     "role": "assistant", 
                     "content": f":green[✅ **PPV DÉBLOQUÉ PAR L'ABONNÉ**]\n\n{reply_clean}"
                 })
             else:
-                st.session_state.messages.append({"role": "assistant", "content": reply})
-                
+                reply_clean = reply.replace("BUY_PPV", "").strip()
+                st.session_state.messages.append({"role": "assistant", "content": reply_clean})
+            
+            # Réinitialisation de l'indicateur PPV après la réponse
+            st.session_state.last_sent_is_ppv = False
             st.rerun()
     except Exception as e:
         st.error(f"Erreur d'API : {e}")
@@ -160,6 +185,7 @@ col1, col2 = st.columns(2)
 
 with col1:
     if st.button("📸 Teaser Gratuit"):
+        st.session_state.last_sent_is_ppv = False
         st.session_state.messages.append({"role": "user", "content": "[📸 APERÇU MEDIA GRATUIT Envoyé]"})
         call_openrouter()
 
@@ -175,11 +201,13 @@ if show_ppv_form:
         submit_ppv = st.form_submit_button("🚀 Envoyer le PPV")
         
         if submit_ppv:
+            st.session_state.last_sent_is_ppv = True
             ppv_message = f"[🔒 MEDIA PPV VERROUILLÉ ({ppv_price}€) - Description: {ppv_desc}]"
             st.session_state.messages.append({"role": "user", "content": ppv_message})
             call_openrouter()
 
 user_input = st.chat_input("Écrivez votre message...")
 if user_input:
+    st.session_state.last_sent_is_ppv = False
     st.session_state.messages.append({"role": "user", "content": user_input})
     call_openrouter()
