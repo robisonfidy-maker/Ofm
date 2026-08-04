@@ -101,7 +101,7 @@ if not st.session_state.age_verified:
     st.stop()
 
 # ---------------------------------------------------------
-# ÉTAPE 2 : GENERATION DE L'IDENTITE ALEATOIRE DE L'ABONNE
+# ÉTAPE 2 : GENERATION DE L'IDENTITE ET PSYCHOLOGIE DU SUB
 # ---------------------------------------------------------
 if "sub_identity" not in st.session_state:
     prenoms = ["Thomas", "Alexandre", "Julien", "Maxime", "Lucas", "Antoine", "Mathieu", "Romain"]
@@ -116,7 +116,6 @@ if "sub_identity" not in st.session_state:
     }
 
 if "kyc_discovered" not in st.session_state:
-    # 0% au départ
     st.session_state.kyc_discovered = {
         "prenom": None,
         "age": None,
@@ -129,7 +128,7 @@ if "kyc_discovered" not in st.session_state:
 # ---------------------------------------------------------
 
 st.title("💬 Simulator by Kris")
-st.caption("Espace de simulation de chat et vente de PPV")
+st.caption("Espace de simulation de chat et vente de PPV (Funnel OFM)")
 
 api_key = st.sidebar.text_input("Clé API OpenRouter", type="password")
 
@@ -163,26 +162,30 @@ st.write("---")
 sub = st.session_state.sub_identity
 
 SYSTEM_PROMPT = (
-    f"Tu es un abonné sur la plateforme privée d'une créatrice de contenu.\n"
-    f"Voici ta VRAIE identité secrète :\n"
+    f"Tu es un abonné masculin sur la plateforme OnlyFans d'une créatrice de contenu.\n"
+    f"Ton identité secrète :\n"
     f"- Prénom : {sub['prenom']}\n"
     f"- Âge : {sub['age']}\n"
     f"- Ville : {sub['ville']}\n"
     f"- Métier : {sub['metier']}\n\n"
-    "RÈGLES IMPORTANTES DE COMPORTEMENT :\n"
-    "- Ne sois PAS trop bavard ! Sois direct, court (1 phrase à 2 maximum) et réagis naturellement comme un vrai mec sur un chat.\n"
-    "- Ne donne JAMAIS tes informations personnelles d'un coup spontanément !\n"
-    "- Si la créatrice te pose une question précise (ex: 'Tu t'appelles comment ?', 'Tu habites où ?', 'Tu fais quoi dans la vie ?', 'Tu as quel âge ?'), "
-    "réponds-lui gentiment en utilisant EXACTEMENT les vraies données de ton identité secrète ci-dessus.\n"
-    "- Si la créatrice t'envoie '[🔒 MEDIA PPV VERROUILLÉ]', décide d'acheter selon le prix et l'envie.\n"
-    "- SI ET SEULEMENT SI tu achètes le PPV, commence ta réponse par le mot exact : BUY_PPV.\n"
-    "- Reste toujours dans ton rôle."
+    "PSYCHOLOGIE & DIRECTIVES DE CONVERSATION (FUNNEL ONLYFANS) :\n"
+    "1. STYLE DE RÉPONSE : Sois TRÈS NATUREL. Réponds en 1 seule phrase (maximum 2 phrases courtes). Utlise un ton informel de mec (flirt, emojis occasionnels, langage SMS léger).\n"
+    "2. ÉTAPES DU CHAT :\n"
+    "   - Phase 1 (Faire connaissance) : Au début, tu es amical mais réservé. Ne donne PAS tes infos persos d'un coup. Donne ton prénom, âge, ville ou métier SEULEMENT si la créatrice te le demande gentiment.\n"
+    "   - Phase 2 (Flirt / Connexion) : Si la créatrice te fait des compliments ou s'intéresse à toi, commence à flirter subtilement et montre de l'enthousiasme.\n"
+    "   - Phase 3 (Sexualisation) : Si la discussion devient chaude/intime, tu deviens excité et réceptif.\n"
+    "3. RÈGLE DES PPV (Achats) :\n"
+    "   - Si la créatrice t'envoie un PPV verrouillé '[🔒 MEDIA PPV VERROUILLÉ]' trop tôt (alors que la discussion vient de commencer ou sans sexualisation), REFUSE gentiment ou hésite ('C'est un peu tôt non ?', 'Haha tu vas vite').\n"
+    "   - Si la discussion est déjà bien chaude et qu'elle t'a chauffé, tu ACHÈTES la vidéo/photo avec grand plaisir.\n"
+    "   - SI TU ACHÈTES LE PPV : Commence OBLIGATOIREMENT ton message par le mot exact : BUY_PPV.\n"
+    "     Exemple : 'BUY_PPV Trop hâte de voir ça, je débloque direct ! 🔥'\n"
+    "   - SI TU REFUSES OU NÉGOCIES : Ne mets SURTOUT PAS le mot BUY_PPV."
 )
 
 if "messages" not in st.session_state:
     st.session_state.messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "assistant", "content": "Salut ! Trop content d'être sur ta page privée 😉"}
+        {"role": "assistant", "content": "Coucou ! Trop content que tu me répondes 😉"}
     ]
 
 if "last_sent_is_ppv" not in st.session_state:
@@ -196,7 +199,7 @@ for msg in st.session_state.messages:
             st.write(msg["content"])
 
 def update_kyc_automatically(reply):
-    """Vérifie si l'IA vient de révéler une de ses vraies infos secrètes et met à jour le KYC"""
+    """Met à jour le KYC quand l'abonné donne une info en répondant"""
     reply_lower = reply.lower()
     sub_info = st.session_state.sub_identity
     
@@ -205,7 +208,7 @@ def update_kyc_automatically(reply):
         st.session_state.kyc_discovered["prenom"] = sub_info["prenom"]
         
     # Âge
-    age_num = sub_info["age"].split()[0] # Ex: "28" de "28 ans"
+    age_num = sub_info["age"].split()[0]
     if age_num in reply_lower:
         st.session_state.kyc_discovered["age"] = sub_info["age"]
         
@@ -221,7 +224,7 @@ def call_openrouter():
     payload = {
         "model": "gryphe/mythomax-l2-13b",
         "messages": st.session_state.messages,
-        "temperature": 0.8
+        "temperature": 0.85
     }
     req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'), headers=headers)
     try:
@@ -229,10 +232,10 @@ def call_openrouter():
             result = json.loads(response.read().decode('utf-8'))
             reply = result['choices'][0]['message']['content']
             
-            # Analyse pour faire progresser le KYC automatiquement
+            # Détection KYC
             update_kyc_automatically(reply)
             
-            # Gestion de l'affichage du PPV
+            # Traitement de la décision d'achat PPV
             if st.session_state.last_sent_is_ppv and "BUY_PPV" in reply:
                 reply_clean = reply.replace("BUY_PPV", "").strip()
                 st.session_state.messages.append({
