@@ -1,7 +1,7 @@
 import streamlit as st
 import json
 import urllib.request
-import re
+import random
 
 # Configuration de la page
 st.set_page_config(page_title="Simulator by Kris", page_icon="💬", layout="centered")
@@ -74,15 +74,6 @@ st.markdown("""
         border-radius: 15px;
         padding: 20px;
     }
-    
-    /* Style du conteneur KYC */
-    .kyc-box {
-        background-color: #FFFFFF;
-        border-radius: 12px;
-        padding: 15px;
-        border: 1px solid #DDD6FE;
-        margin-bottom: 20px;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -110,7 +101,31 @@ if not st.session_state.age_verified:
     st.stop()
 
 # ---------------------------------------------------------
-# ÉTAPE 2 : APPLICATION PRINCIPALE
+# ÉTAPE 2 : GENERATION DE L'IDENTITE ALEATOIRE DE L'ABONNE
+# ---------------------------------------------------------
+if "sub_identity" not in st.session_state:
+    prenoms = ["Thomas", "Alexandre", "Julien", "Maxime", "Lucas", "Antoine", "Mathieu", "Romain"]
+    villes = ["Paris", "Lyon", "Marseille", "Bordeaux", "Lille", "Toulouse", "Nantes", "Nice"]
+    metiers = ["Ingénieur", "Commercial", "Développeur", "Électricien", "Comptable", "Architecte", "Mécanicien"]
+
+    st.session_state.sub_identity = {
+        "prenom": random.choice(prenoms),
+        "age": f"{random.randint(22, 45)} ans",
+        "ville": random.choice(villes),
+        "metier": random.choice(metiers)
+    }
+
+if "kyc_discovered" not in st.session_state:
+    # 0% au départ
+    st.session_state.kyc_discovered = {
+        "prenom": None,
+        "age": None,
+        "ville": None,
+        "metier": None
+    }
+
+# ---------------------------------------------------------
+# ÉTAPE 3 : APPLICATION PRINCIPALE & BARRE KYC
 # ---------------------------------------------------------
 
 st.title("💬 Simulator by Kris")
@@ -129,44 +144,39 @@ headers = {
     "HTTP-Referer": "https://streamlit.app"
 }
 
-# Initialisation des variables KYC
-if "kyc_data" not in st.session_state:
-    st.session_state.kyc_data = {
-        "prenom": "Thomas", # Connu dès le départ par défaut
-        "age": None,
-        "ville": None,
-        "metier": None
-    }
-
-# ---------------------------------------------------------
-# GESTION ET AFFICHAGE DU KYC
-# ---------------------------------------------------------
-kyc = st.session_state.kyc_data
-score_kyc = sum(1 for val in kyc.values() if val is not None) * 25
+# Calcul de la progression du KYC
+discovered = st.session_state.kyc_discovered
+score_kyc = sum(1 for val in discovered.values() if val is not None) * 25
 
 st.markdown("### 📊 Progression KYC")
 st.progress(score_kyc / 100)
 st.write(f"**Complété à : {score_kyc}%**")
 
-# Affichage des informations récoltées
+# Affichage des informations découvertes
 cols = st.columns(4)
-cols[0].write(f"👤 **Prénom:** {kyc['prenom'] if kyc['prenom'] else '❌'}")
-cols[1].write(f"🎂 **Âge:** {kyc['age'] if kyc['age'] else '❌'}")
-cols[2].write(f"📍 **Ville:** {kyc['ville'] if kyc['ville'] else '❌'}")
-cols[3].write(f"💼 **Métier:** {kyc['metier'] if kyc['metier'] else '❌'}")
+cols[0].write(f"👤 **Prénom:** {discovered['prenom'] if discovered['prenom'] else '❓'}")
+cols[1].write(f"🎂 **Âge:** {discovered['age'] if discovered['age'] else '❓'}")
+cols[2].write(f"📍 **Ville:** {discovered['ville'] if discovered['ville'] else '❓'}")
+cols[3].write(f"💼 **Métier:** {discovered['metier'] if discovered['metier'] else '❓'}")
 st.write("---")
 
+sub = st.session_state.sub_identity
+
 SYSTEM_PROMPT = (
-    "Tu es Thomas, un abonné réel sur la plateforme privée d'une créatrice de contenu. "
-    "Tu réagis de manière totalement naturelle, spontanée et réaliste comme un vrai fan.\n\n"
-    "Règles strictes de comportement :\n"
-    "- Parle de façon décontractée, directe et amicale (1 à 2 phrases courtes maximum).\n"
-    "- Si l'utilisateur te pose des questions sur toi (ton âge, ta ville, ton travail), réponds naturellement et donne ces infos quand on te le demande gentiment.\n"
-    "- Si l'utilisateur t'envoie un message contenant '[🔒 MEDIA PPV VERROUILLÉ]', cela signifie qu'il te propose une vidéo ou photo payante.\n"
-    "- SI ET SEULEMENT SI tu décides d'acheter ce PPV, commence IMPÉRATIVEMENT ta réponse par le mot exact : BUY_PPV.\n"
-    "  Exemple : 'BUY_PPV Carrément chaud ! Je le prends direct.'\n"
-    "- Si tu n'achètes pas (trop cher, pas intéressé, ou simple discussion), NE METS SURTOUT PAS le mot BUY_PPV. Négocie ou discute normalement.\n"
-    "- Ne casse jamais ton rôle d'abonné."
+    f"Tu es un abonné sur la plateforme privée d'une créatrice de contenu.\n"
+    f"Voici ta VRAIE identité secrète :\n"
+    f"- Prénom : {sub['prenom']}\n"
+    f"- Âge : {sub['age']}\n"
+    f"- Ville : {sub['ville']}\n"
+    f"- Métier : {sub['metier']}\n\n"
+    "RÈGLES IMPORTANTES DE COMPORTEMENT :\n"
+    "- Ne sois PAS trop bavard ! Sois direct, court (1 phrase à 2 maximum) et réagis naturellement comme un vrai mec sur un chat.\n"
+    "- Ne donne JAMAIS tes informations personnelles d'un coup spontanément !\n"
+    "- Si la créatrice te pose une question précise (ex: 'Tu t'appelles comment ?', 'Tu habites où ?', 'Tu fais quoi dans la vie ?', 'Tu as quel âge ?'), "
+    "réponds-lui gentiment en utilisant EXACTEMENT les vraies données de ton identité secrète ci-dessus.\n"
+    "- Si la créatrice t'envoie '[🔒 MEDIA PPV VERROUILLÉ]', décide d'acheter selon le prix et l'envie.\n"
+    "- SI ET SEULEMENT SI tu achètes le PPV, commence ta réponse par le mot exact : BUY_PPV.\n"
+    "- Reste toujours dans ton rôle."
 )
 
 if "messages" not in st.session_state:
@@ -185,24 +195,33 @@ for msg in st.session_state.messages:
         with st.chat_message(msg["role"], avatar=avatar):
             st.write(msg["content"])
 
-def analyze_kyc_with_ai(reply):
-    """Analyse la réponse de l'IA pour extraire automatiquement les infos KYC manquantes"""
-    # Détection basique par mots-clés dans la réponse de l'abonné
+def update_kyc_automatically(reply):
+    """Vérifie si l'IA vient de révéler une de ses vraies infos secrètes et met à jour le KYC"""
     reply_lower = reply.lower()
+    sub_info = st.session_state.sub_identity
     
-    # Détection de l'âge (ex: 25 ans, 30ans)
-    age_match = re.search(r'(\d{2})\s*ans', reply_lower)
-    if age_match and not st.session_state.kyc_data["age"]:
-        st.session_state.kyc_data["age"] = f"{age_match.group(1)} ans"
+    # Prénom
+    if sub_info["prenom"].lower() in reply_lower:
+        st.session_state.kyc_discovered["prenom"] = sub_info["prenom"]
         
-    # Vous pouvez aussi mettre à jour la ville et le métier manuellement ou via détection
-    # (L'IA donnera ces infos si l'utilisateur lui pose la question dans le chat)
+    # Âge
+    age_num = sub_info["age"].split()[0] # Ex: "28" de "28 ans"
+    if age_num in reply_lower:
+        st.session_state.kyc_discovered["age"] = sub_info["age"]
+        
+    # Ville
+    if sub_info["ville"].lower() in reply_lower:
+        st.session_state.kyc_discovered["ville"] = sub_info["ville"]
+        
+    # Métier
+    if sub_info["metier"].lower() in reply_lower:
+        st.session_state.kyc_discovered["metier"] = sub_info["metier"]
 
 def call_openrouter():
     payload = {
         "model": "gryphe/mythomax-l2-13b",
         "messages": st.session_state.messages,
-        "temperature": 0.85
+        "temperature": 0.8
     }
     req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'), headers=headers)
     try:
@@ -210,8 +229,8 @@ def call_openrouter():
             result = json.loads(response.read().decode('utf-8'))
             reply = result['choices'][0]['message']['content']
             
-            # Analyse KYC de la réponse
-            analyze_kyc_with_ai(reply)
+            # Analyse pour faire progresser le KYC automatiquement
+            update_kyc_automatically(reply)
             
             # Gestion de l'affichage du PPV
             if st.session_state.last_sent_is_ppv and "BUY_PPV" in reply:
